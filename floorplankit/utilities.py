@@ -77,17 +77,16 @@ def plot_patches(image, coords, sizex, sizey):
 
 
 def get_all_vectors(path, patch_size, multiplier, rot_angle=360):
-    
     image_paths = images_paths(path)
     vectors = []
     bar = pyprind.ProgBar(len(image_paths), bar_char='█', width=50, title="Converting images to vectors")
     for path in image_paths:
         img = Image.open(path)
-        #rotated_images = get_rotated_images(img, rot_angle)
-        #for simg in rotated_images:
-        patch_coords = patch_coordinates(img, multiplier, patch_size)
-        tempvec = patches_to_vector(img, patch_coords)
-        vectors.extend(tempvec)
+        rot_images = rotated_images(img, rot_angle)
+        for simg in rot_images:
+        	patch_coords = patch_coordinates(simg, multiplier, patch_size)
+        	tempvec = patches_to_vector(simg, patch_coords)
+        	vectors.extend(tempvec)
         bar.update()
     return np.asarray(vectors)
 
@@ -102,8 +101,6 @@ def patches_to_vector(image, patches):
     for x in patches[0]:
         for y in patches[1]:
             box = (x, y, x+patches[2][0], y+patches[2][1])
-            file = path_leaf(image.filename)
-            f, e = splitext(file)
             region = image.crop(box)
             vec = image_to_vector(region)
             regions.append(vec)
@@ -220,8 +217,10 @@ def rotate_image(image, rotation):
     return final
 
 def rotated_images(img, rot_angle):
-    rotations = np.arange(0,360, rot_angle)
-    return [rotatedImage(img, angle) for angle in rotations]
+    rotations = np.arange(0,360, rot_angle)[1:]
+    images = [rotate_image(img, angle) for angle in rotations]
+    images.insert(0,img)
+    return images
 
 
 def get_thumbnail_size(image_size, target_width, offsetX, offsetY, limit=0):
@@ -235,7 +234,7 @@ def get_thumbnail_size(image_size, target_width, offsetX, offsetY, limit=0):
     return target_width, no_rows*(Y+offsetY)
 
 
-def create_elements_map(som_size, patch_size, vectors, projected_dict, target_width, no_images, offsetX=10, offsetY=10):
+def create_elements_map(som_size, patch_size, projected_dict, target_width, no_images, offsetX=10, offsetY=10):
 
     X, Y = get_thumbnail_size(patch_size, target_width, offsetX, offsetY, limit=no_images)
     final_image = Image.new('L',(som_size[0]*X, som_size[1]*Y), 255)
@@ -243,8 +242,7 @@ def create_elements_map(som_size, patch_size, vectors, projected_dict, target_wi
 
     for y in range(som_size[1]):
         for x in range(som_size[0]):
-            v = projected_dict[(x,y)]
-            projected = ns.get_projected_vectors(vectors, v)
+            projected = projected_dict[(x,y)]
             vector_len = len(projected)
             #print ("Cell: %i,%i | No vectors: %i" %(x, y, vector_len))
             randoms = np.random.randint(0,vector_len,no_images) 
