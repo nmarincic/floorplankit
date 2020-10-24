@@ -91,6 +91,21 @@ def get_all_vectors(path, patch_size, multiplier, rot_angle=360):
     return np.asarray(vectors)
 
 
+def get_all_images(path, patch_size, multiplier, rot_angle=360):
+	image_paths = images_paths(path)
+	images = []
+	bar = pyprind.ProgBar(len(image_paths), bar_char='█', width=50, title="Loading image patches")
+	for path in image_paths:
+		img = Image.open(path)
+		rot_images = rotated_images(img, rot_angle)
+		for simg in rot_images:
+			patch_coords = patch_coordinates(simg, multiplier, patch_size)
+			img_patches = patches_to_images_list(simg, patch_coords)
+			images.extend(img_patches)
+		bar.update()
+	return images
+        
+
 def path_leaf(path):
     head, tail = ntpath.split(path)
     return tail or ntpath.basename(head)
@@ -106,6 +121,15 @@ def patches_to_vector(image, patches):
             regions.append(vec)
     return regions
 
+def patches_to_images_list(image, patches):
+    regions = []
+    for x in patches[0]:
+        for y in patches[1]:
+            box = (x, y, x+patches[2][0], y+patches[2][1])
+            region = image.crop(box)
+            regions.append(region)
+    return regions   
+
 
 def patches_to_images(path, image, patches, extension="JPEG"):
     for x in patches[0]:
@@ -116,7 +140,7 @@ def patches_to_images(path, image, patches, extension="JPEG"):
             region = image.crop(box)
             savepath = path+f+"_"+str((x,y))+e
             region.save(savepath, extension)
-    return regions
+    return region
 
 
 def image_to_vector(image):
@@ -243,6 +267,10 @@ def create_elements_map(som_size, patch_size, projected_dict, target_width, no_i
     for y in range(som_size[1]):
         for x in range(som_size[0]):
             projected = projected_dict[(x,y)]
+            if projected == []:
+                empty_vec = image_to_vector(Image.new('L', patch_size, 255))
+                projected = [empty_vec]
+
             vector_len = len(projected)
             #print ("Cell: %i,%i | No vectors: %i" %(x, y, vector_len))
             randoms = np.random.randint(0,vector_len,no_images) 
